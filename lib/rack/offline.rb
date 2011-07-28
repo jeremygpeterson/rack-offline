@@ -10,6 +10,13 @@ module Rack
     def self.configure(*args, &block)
       new(*args, &block)
     end
+    
+    # interval in seconds used to compute the cache key when in uncached mode
+    # which can be set by passing in options[:cache_interval]
+    # note: setting it to 0 or a low value will change the cache key every request
+    # which means the manifest will never successfully download
+    # (since it gets downloaded again at the end)
+    UNCACHED_KEY_INTERVAL = 10
 
     def initialize(options = {}, &block)
       @cache    = options[:cache]
@@ -28,15 +35,17 @@ module Rack
         raise "In order to run Rack::Offline in cached mode, " \
               "you need to supply a root so Rack::Offline can " \
               "calculate a hash of the files." unless @root
-        generate_key!
+        precache_key!
+      else
+        @cache_interval = (options[:cache_interval] || UNCACHED_KEY_INTERVAL).to_i
       end
     end
 
     def call(env)
-      generate_key! unless @cache
+      key = @key || uncached_key
 
       body = ["CACHE MANIFEST"]
-      body << "# #{@key}"
+      body << "# #{key}"
       @config.cache.each do |item|
         body << URI.escape(item.to_s)
       end
@@ -62,12 +71,18 @@ module Rack
 
   private
 
-    def generate_key!
+    def precache_key!
       hash = @config.cache.map do |item|
         Digest::SHA2.hexdigest(@root.join(item).read) if item.file?
       end
 
       @key = Digest::SHA2.hexdigest(hash.join)
     end
+    
+    def uncached_key
+      now = Time.now.to_i - Time.now.to_i % @cache_interval
+      Digest::SHA2.hexdigest(now.to_s)
+    end
+    
   end
 end

@@ -3,27 +3,11 @@ require "spec_helper"
 describe "Generating a basic manifest" do
   include Rack::Test::Methods
 
-  self.app = Rack::Offline.configure(:root => File.expand_path("../fixture_root", __FILE__)) do
-    cache "hello.css"
+  self.app = Rack::Offline.configure do
+    cache "images/masthead.png"
   end
 
   it_should_behave_like "a cache manifest"
-
-  it "returns the same cache-busting comment when files haven't changed" do
-    cache_buster = body[/^# .{64}$/]
-    get "/"
-    body[/^# .{64}$/].should == cache_buster
-  end
-
-  it "returns a different cache-busting comment when file has changed" do
-    cache_buster = body[/^# .{64}$/]
-
-    root = File.expand_path("../fixture_root", __FILE__)
-    File.open("#{root}/hello.css", "w") {|file| file.puts "OMG"}
-
-    get "/"
-    body[/^# .{64}$/].should_not == cache_buster
-  end
 
   it "doesn't contain a network section" do
     body.should_not =~ %r{^NETWORK:}
@@ -31,5 +15,27 @@ describe "Generating a basic manifest" do
 
   it "doesn't contain a fallback section" do
     body.should_not =~ %r{^FALLBACK:}
+  end
+  
+  describe "cache-busting comment" do
+    context "if no interval is specified" do
+      self.app = Rack::Offline.configure do
+        cache "images/masthead.png"
+      end
+
+      it_should_behave_like "uncached cache manifests"
+    end
+
+    context "if an interval is specified" do
+      INTERVAL = 15
+      self.app = Rack::Offline.configure(:cache_interval => INTERVAL) do
+        cache "images/masthead.png"
+      end
+      
+      before do
+        @interval = INTERVAL
+      end
+      it_should_behave_like "uncached cache manifests"
+    end
   end
 end
