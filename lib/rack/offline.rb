@@ -79,19 +79,30 @@ module Rack
       @key = Digest::SHA2.hexdigest(hash.join)
     end
 
-    # simple cache for last time called, sets last_time to now and 
-    # returns last time or a microsecond ago
+    # simple cache for last time called
     def last_time
-      present_time = Time.now
-      last = @last_time || present_time.to_i - 1 # modify time
-      @last_time = present_time # save for next call
+      @last_time ||= last_time!
+    end
 
-      return last
+    # Sets last_time to Time.now
+    def last_time!
+      @last_time = Time.now.to_i
+    end
+
+    def new_cache_interval?
+      (Time.now.to_i - last_time.to_i) > @cache_interval
+    end
+
+    def uncached_key!
+      
     end
 
     def uncached_key
-      now = Time.now.to_i - last_time.to_i % @cache_interval
-      Digest::SHA2.hexdigest(now.to_s)
+      @uncached_key = last_time! if !@uncached_key || new_cache_interval?
+
+      puts "@uncached_key = #{@uncached_key}"
+      last_time!
+      Digest::SHA2.hexdigest(@uncached_key.to_s)
     end
     
   end
