@@ -99,9 +99,6 @@ module Rack
 
     def uncached_key
       @uncached_key = last_time! if !@uncached_key || new_cache_interval?
-
-      puts "@uncached_key = #{@uncached_key}"
-      last_time!
       Digest::SHA2.hexdigest(@uncached_key.to_s)
     end
     
