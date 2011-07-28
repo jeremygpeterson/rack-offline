@@ -64,7 +64,7 @@ module Rack
 
     def precache_key!
       hash = @config.cache.map do |item|
-        Digest::SHA2.hexdigest(@root.join(item).read)
+        Digest::SHA2.hexdigest(@root.join(item).read) if item.file?
       end
 
       @key = Digest::SHA2.hexdigest(hash.join)
